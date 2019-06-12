@@ -14,7 +14,6 @@
 using namespace cv;
 using namespace std;
 
-//void Simple_Move_OnePoint(double p_x,double p_y,double p_z,double r_x,double r_y,double r_z);
 static void edge_CB(int, void*);
 static void rect_CB(int, void*);
 static void color_CB(int, void*);
@@ -24,7 +23,8 @@ Mat drawInfo(Mat src, vector<RotatedRect> minRects);
 Mat preProcess(Mat input);
 vector<RotatedRect> findObj( Mat input);
 string classifyObj(RotatedRect minRect);
-//void TF(int obj_img_x, int obj_img_y, double& obj_robot_x, double& obj_robot_y);
+void readThreshhold();
+void writeThreshhold();
 
 int low_thres=100;
 int up_thres=200;
@@ -60,7 +60,7 @@ int main(int argc, char** argv ){
 
 	int mode=3;
 	setupWindow();
-	VideoCapture cap(1); // open the default camera
+	VideoCapture cap(0); // open the default camera
     while(1){
 		if(!cap.isOpened()) cout<<"not yet\n";
 		else break;
@@ -87,7 +87,6 @@ int main(int argc, char** argv ){
 
     int err = connect(sockfd,(struct sockaddr *)&info,sizeof(info));
     
-    cout<< err<< endl;
 
     if(err==-1){
         cout<<"Connection error";
@@ -98,7 +97,7 @@ int main(int argc, char** argv ){
 	cap.set(CV_CAP_PROP_FRAME_HEIGHT,720);
 	
     Mat cameraMatrix, distCoeffs, map1, map2;
-    FileStorage fs("camMatrix.xml", FileStorage::READ);
+    FileStorage fs("../camMatrix.xml", FileStorage::READ);
     fs["CameraMatrix"]>> cameraMatrix;
     fs["DistortionCoeffient"]>> distCoeffs;
     fs.release(); 
@@ -108,10 +107,6 @@ int main(int argc, char** argv ){
 
 
     //Rect rect(0, 0, 600, 600);
-
-
-cout<<src.size().height<<endl;
-cout<<src.size().width<<endl;
 
 	
 	while(1){
@@ -151,21 +146,14 @@ cout<<src.size().width<<endl;
 	    if( pressedKey == 'r') {rect_CB(0,0);mode=2;}//press r key to show bounding rectangle
 	    if( pressedKey == 'w') {color_CB(0,0);mode=3;}
 	    if( pressedKey == 'g') {mode=4;}//press g key to grab
+        if( pressedKey == 'i') {readThreshhold();}
+        if( pressedKey == 'o') {writeThreshhold();}
 	}
     close(sockfd);
     return 0;
 }
-/*
-void TF(int obj_img_x, int obj_img_y, double& obj_robot_x, double& obj_robot_y){
-	double robotX, robotY, imgX, imgY;
-	robotX = 0;
-	robotY = 447.87;
-	imgX = -270;
-	imgY = 405;
-	obj_robot_x = ((double)obj_img_x-imgX)/1.34+robotX;
-	obj_robot_y = ((double)obj_img_y-imgY)/1.34+robotY;
-}
-*/
+
+
 static void color_CB(int, void*){
     Mat srcHSV;
     cvtColor(src, srcHSV, COLOR_BGR2HSV);
@@ -189,13 +177,11 @@ static void rect_CB(int, void*){
     minRects = findObj(edge);
     dst = drawInfo(src, minRects);
     imshow(win_name, dst);
-    //imshow(win_name, src_contoure);
 	
 }
 
 bool compareArea(vector<Point> a, vector<Point> b){
     return contourArea(a) > contourArea(b);
-    //return arcLength(a, true) > arcLength(b, true);
 }
 
 Mat  preProcess(Mat input){
@@ -318,10 +304,52 @@ void setupWindow(){
     return ;
 }
 
-/*
-void Simple_Move_OnePoint(double p_x,double p_y,double p_z,double r_x,double r_y,double r_z)
-{
-	DSrb.Receive_Flag=1;
-	DSrb.SocketHiwiinWR(p_x,p_y,p_z,r_x,r_y,r_z);
+void readThreshhold(){
+    FileStorage fs;
+    fs.open("Threshhold.xml", FileStorage::READ);
+    fs["redLowH"]>>redLowHSV[0];
+    fs["redLowS"]>>redLowHSV[1];
+    fs["redLowV"]>>redLowHSV[2];
+    fs["redHighH"]>>redHighHSV[0];
+    fs["redHighS"]>>redHighHSV[1];
+    fs["redHighV"]>>redHighHSV[2];
+    fs["greenLowH"]>>greenLowHSV[0];
+    fs["greenLowS"]>>greenLowHSV[1];
+    fs["greenLowV"]>>greenLowHSV[2];
+    fs["greenHighH"]>>greenHighHSV[0];
+    fs["greenHighS"]>>greenHighHSV[1];
+    fs["greenHighV"]>>greenHighHSV[2];
+    fs.release();     
+
+    setTrackbarPos("Red High H", ctrl_win, redHighHSV[0]);
+    setTrackbarPos("Red Low H", ctrl_win, redLowHSV[0]);
+    setTrackbarPos("Red High S", ctrl_win, redHighHSV[1]);
+    setTrackbarPos("Red Low S", ctrl_win, redLowHSV[1]);
+    setTrackbarPos("Red High V", ctrl_win, redHighHSV[2]);
+    setTrackbarPos("Red Low V", ctrl_win, redLowHSV[2]);
+    setTrackbarPos("Green High H", ctrl_win,greenHighHSV[0]);
+    setTrackbarPos("Green Low H", ctrl_win, greenLowHSV[0]);
+    setTrackbarPos("Green High S", ctrl_win, greenHighHSV[1]);
+    setTrackbarPos("Green Low S", ctrl_win, greenLowHSV[1]);
+    setTrackbarPos("Green High V", ctrl_win, greenHighHSV[2]);
+    setTrackbarPos("Green Low V", ctrl_win, greenLowHSV[2]);
+    
 }
-*/
+
+void writeThreshhold(){
+    FileStorage fs;
+    fs.open("Threshhold.xml", FileStorage::WRITE);
+    fs<<"redLowH"<<redLowHSV[0];
+    fs<<"redLowS"<<redLowHSV[1];
+    fs<<"redLowV"<<redLowHSV[2];
+    fs<<"redHighH"<<redHighHSV[0];
+    fs<<"redHighS"<<redHighHSV[1];
+    fs<<"redHighV"<<redHighHSV[2];
+    fs<<"greenLowH"<<greenLowHSV[0];
+    fs<<"greenLowS"<<greenLowHSV[1];
+    fs<<"greenLowV"<<greenLowHSV[2];
+    fs<<"greenHighH"<<greenHighHSV[0];
+    fs<<"greenHighS"<<greenHighHSV[1];
+    fs<<"greenHighV"<<greenHighHSV[2];
+    fs.release();     
+}
